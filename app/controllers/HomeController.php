@@ -8,21 +8,23 @@ use app\QueryBuilder;
 use PDO;
 use Delight\Auth\Auth;
 use League\Plates\Engine;
+
 use Tamtamchik\SimpleFlash\Flash;
+use Tamtamchik\SimpleFlash\Templates;
+
 use function Tamtamchik\SimpleFlash\flash;
 
 class HomeController
 {
-	private $templates;
+  private $templates;
 	public $auth;
-	protected $db;
-	private $flash;
-	public function __construct()
+	private $qb;
+	private $engine;
+	public function __construct(QueryBuilder $qb, Engine $engine,Auth $auth)
 	{
-		$this->db = new PDO("mysql:host=localhost;dbname=graduation","mysql","mysql");
-		$this->templates = new Engine('../app/views');
-		$this->auth = new auth($this->db);
-		$flash = new Flash();
+		$this->qb = $qb;
+		$this->templates =$engine;
+		$this->auth = $auth;
 		
 	}
 	public function views_register(){
@@ -101,8 +103,8 @@ class HomeController
 			HomeController::redirect_to("page_login");
 		}
 		
-		$db  = new QueryBuilder();
-		$users=$db->getAll("users");
+		
+		$users=$this->qb->getAll("users");
 		d($_SESSION);
 		echo $this->templates->render('users',["users"=>$users]);
 
@@ -128,8 +130,8 @@ class HomeController
 		
 		try {
 			$userID = $this->auth->admin()->createUser($_POST['email'],$_POST['password']);
-			$db =  new QueryBuilder();
-			 $db->update_personal("users",$userID,$_POST['position'],$_POST['username'],$_POST['phone_number'],$_POST['address']);
+			
+			 $$this->qb->update_personal("users",$userID,$_POST['position'],$_POST['username'],$_POST['phone_number'],$_POST['address']);
 			 $db->update_status('users',$userID,$_POST['status']);
 			 $db->social_update('users',$userID,$_POST['vk'],$_POST['telegram'],$_POST['instagram']);
 			 $db->avatar_upload('users',$_FILES['images'],$userID);
@@ -146,52 +148,50 @@ class HomeController
 	  }
 	 
 	}
-	public function views_edit($vars)
+	public function views_edit($id)
 	{
-		$id = $vars['id'];
+	
 		$edit_user_id= (int)$id;
 		$current_user_id = $this->auth->getUserId();
 
-		$db = new QueryBuilder();
-		$updates= $db->getOne('users',[
+	
+		$updates= $this->qb->getOne('users',[
 			'id',
 			'username',
 			'position',
 			'phone_number',
 			'address'
-		],$vars['id']);
+		],$id);
 		if(!$this->auth->hasRole(\Delight\Auth\Role::ADMIN) AND $edit_user_id !==$current_user_id)
 		{
 			HomeController::redirect_to("\users");
 		}
 		echo $this->templates->render('edit',['values'=>$updates]);
 	}
-	public function update_information()
+	public function update_information($id)
 	{	
 	
-	
 		$id = $_POST['id'];
-		
 		// d($edit_user_id);
 		// d($current_user_id);
-		$db = new QueryBuilder();
-		$db->update_personal("users",$id,$_POST['username'],$_POST['position'],$_POST['phone'],$_POST['address']);
+
+		$this->qb->update_personal("users",$id,$_POST['username'],$_POST['position'],$_POST['phone'],$_POST['address']);
 
 		HomeController::redirect_to("/edit/".$id);
 
 	}
-	public function views_security($vars)
+	public function views_security($id)
 	{
-		$id = $vars['id'];
+
 		$edit_user_id= (int)$id;
 		$current_user_id = $this->auth->getUserId();
 
-		$db= new QueryBuilder();
-		$updates=$db->getOne('users',
+		
+		$updates=$this->qb->getOne('users',
 		[
 			'id',
 			'email'
-		],$vars['id']);
+		],$id);
 		if(!$this->auth->hasRole(\Delight\Auth\Role::ADMIN) AND $edit_user_id !==$current_user_id)
 		{
 			HomeController::redirect_to("\users");
@@ -201,8 +201,8 @@ class HomeController
 
 	public function update_security()
 	{
-		$db=new QueryBuilder();
-		$user=$db->getemail('users',
+		
+		$user=$$this->qb->getemail('users',
 		[
 			'id',
 			'email'
@@ -214,7 +214,7 @@ class HomeController
 			$_SESSION['secruity_danger']  = "Пользователь существует в базе";
 			exit;
  		}
-		$db->update_email("users",$_POST['email'],$_POST['id']);
+		$this->qb->update_email("users",$_POST['email'],$_POST['id']);
 	try {
 			$this->auth->changePassword($_POST['old_password'], $_POST['new_password']);
 			HomeController::redirect_to("/security/".$_POST['id']);
@@ -232,13 +232,12 @@ class HomeController
 
 	}
 
-	public function views_status($vars)
+	public function views_status($id)
 	{
-		$id = $vars['id'];
 		$edit_user_id= (int)$id;
 		$current_user_id = $this->auth->getUserId();
-		$db = new QueryBuilder();
-		$status=$db->getOne('users',['id','status'],$vars['id']);
+	
+		$status=$this->qb->getOne('users',['id','status'],$id);
 
 		if(!$this->auth->hasRole(\Delight\Auth\Role::ADMIN) AND $edit_user_id !==$current_user_id)
 		{
@@ -250,19 +249,18 @@ class HomeController
 	public function set_status()
 	{
 
-		$db = new QueryBuilder();
-		$db->update_status('users',$_POST['id'],$_POST['status']);
+
+		$this->qb->update_status('users',$_POST['id'],$_POST['status']);
 		HomeController::redirect_to("/status/".$_POST['id']);
 		$_SESSION['status_update']='Статус обновлен!';
 
 	}
-	public function views_media($vars)
+	public function views_media($id)
 	{
-		$id = $vars['id'];
 		$edit_user_id= (int)$id;
 		$current_user_id = $this->auth->getUserId();
-			$db=new QueryBuilder();
-			$image=$db->getOne('users',['id','image'],$vars['id']);
+	
+			$image=$this->qb->getOne('users',['id','image'],$id);
 			
 			if(!$this->auth->hasRole(\Delight\Auth\Role::ADMIN) AND $edit_user_id !==$current_user_id)
 			{
@@ -274,9 +272,9 @@ class HomeController
 	{
 		$id=$_POST['id'];
 
-		$db = new QueryBuilder();
+
 		if(!empty($_FILES['images'])){
-			$db->avatar_upload('users',$_FILES['images'],$id);
+			$this->qb->avatar_upload('users',$_FILES['images'],$id);
 		}
 		HomeController::redirect_to("/media/".$id);
 		$_SESSION['upload_image']= 'Картинка успешно загружен';
@@ -284,17 +282,16 @@ class HomeController
 	
 		
 	}
-	public function delete_user($vars)
+	public function delete_user($id)
 	{
-		$id = $vars['id'];
-		// d($id);
+	
 		
 		$edit_user_id= (int)$id;
 		$current_user_id = $this->auth->getUserId();
 		// d($current_user_id);
-		$db= new QueryBuilder();
-		$image=$db->getOne('users',['image','id'],$vars['id']);
-
+	
+		$image=$this->qb->getOne('users',['image','id'],$id);
+		
 		if(!$this->auth->hasRole(\Delight\Auth\Role::ADMIN) AND $edit_user_id!==$current_user_id)
 		{
 			HomeController::redirect_to("/users");
@@ -302,11 +299,13 @@ class HomeController
 		}
 		elseif($this->auth->hasRole(\Delight\Auth\Role::ADMIN) AND $edit_user_id==$current_user_id)
 		{
+				
 			if(!empty($image['image'])){
 				unlink($image['image']);
 				exit;
 			}
-				$db->delete_user('users',$image['id']);
+			d($this->qb->delete_user('users',$image['id']));die;
+				$this->qb->delete_user('users',$image['id']);
 				$this->auth->logout();
 				HomeController::redirect_to("/page_login");
 	
@@ -317,7 +316,7 @@ class HomeController
 				unlink($image['image']);
 				exit;
 			}
-				$db->delete_user('users',$image['id']);
+				$this->qb->delete_user('users',$image['id']);
 				$this->auth->logout();
 				HomeController::redirect_to("/page_login");
 
@@ -327,7 +326,7 @@ class HomeController
 				unlink($image['image']);
 				exit;
 			}
-				$db->delete_user('users',$image['id']);
+				$this->qb->delete_user('users',$image['id']);
 
 			HomeController::redirect_to('/users');
 			$_SESSION['author_admin'] = "Вы успешно удалили пользователя!";

@@ -1,14 +1,35 @@
 <?
+
+
 require "../vendor/autoload.php";
-
-
+use Delight\Auth\Auth;
+use League\Plates\Engine;
+$containerBuilder = new DI\ContainerBuilder();
+$containerBuilder->addDefinitions([
+	Engine::class=>function()
+	{
+		return new Engine('../app/views');
+	},
+	PDO::class=>function(){
+$driver = "mysql";
+$host ="localhost";
+$databasename='graduation';
+$username = "mysql";
+$password = "mysql";
+return new PDO("$driver:host=$host;dbname=$databasename",$username,$password);
+},	
+Auth::class => function($container)
+{
+return new Auth($container->get('PDO'));
+}	
+]);
+$container = $containerBuilder->build();
 $dispatcher = \FastRoute\simpleDispatcher(function(FastRoute\RouteCollector $r) {
 	$r->addRoute('GET', '/page_register', ["app\controllers\HomeController","views_register"]);
 	$r->addRoute('POST', '/page_register', ["app\controllers\HomeController","page_register"]);
 	$r->addRoute('GET', '/page_login', ["app\controllers\HomeController","views_login"]);
 	$r->addRoute('POST', '/page_login', ["app\controllers\HomeController","page_login"]);
 	$r->addRoute('GET', '/users', ["app\controllers\HomeController","views_users"]);
-	$r->addRoute('GET', '/articles/{id:\d+}[/{title}]', 'get_article_handler');
 	$r->addRoute('GET', '/logout', ['app\controllers\HomeController', 'logout']); 
 	$r->addRoute('GET', '/create_user', ['app\controllers\HomeController', 'views_create']);
 	$r->addRoute('POST', '/create_user', ["app\controllers\HomeController","create_user"]);
@@ -45,9 +66,9 @@ switch ($routeInfo[0]) {
 	case FastRoute\Dispatcher::FOUND:
 		 $handler = $routeInfo[1];
 		 $vars = $routeInfo[2];
-		 $controller = new $handler[0];
-		
-		 call_user_func([$controller,$handler[1]],$vars);
+		//  d($routeInfo[2]);die;
+		$container->call($routeInfo[1],$routeInfo[2]);
+
 		//  ... call $handler with $vars
 		 break;
 }

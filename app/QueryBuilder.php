@@ -7,10 +7,10 @@ use PDO;
 class QueryBuilder{
 	private $pdo;
 	private $queryFactory;
-	public function __construct()
+	public function __construct(PDO $pdo)
 	{
 		$this->queryFactory  = new QueryFactory("mysql");
-		$this->pdo  = new PDO("mysql:host=localhost;dbname=graduation","mysql","mysql");
+		$this->pdo  = $pdo;
 	}
 	public function getAll($table){
 		$select = $this->queryFactory->newSelect();
